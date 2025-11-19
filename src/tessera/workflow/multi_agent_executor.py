@@ -95,24 +95,31 @@ class MultiAgentExecutor:
 
             for task in tasks_to_execute:
                 # Find best agent for this task
-                # For v0.2, simplified: just get any available agent
-                agent_name = self.agent_pool.get_available_agents()
-                if agent_name:
-                    agent_name = agent_name[0].name if agent_name else "supervisor"
-                else:
-                    agent_name = "supervisor"
+                # Find best agent for this task
+                # For v0.2, use supervisor for all tasks
+                # v0.3 will add capability matching
+                agent_name = "supervisor"
 
                 # Assign task
                 self.task_queue.mark_in_progress(task.task_id, agent_name)
 
-                # For v0.2: Mark as complete immediately (stub)
-                # v0.3 will actually execute the task
-                self.task_queue.mark_complete(
-                    task.task_id, result=f"Completed by {agent_name} (stub)"
-                )
+                # Actually execute the task with supervisor
+                try:
+                    # For v0.2: supervisor re-processes each subtask
+                    # v0.3 will delegate to specialized agents
+                    subtask_result = self.supervisor.decompose_task(task.description)
 
-                # Track in agent pool
-                self.agent_pool.mark_task_complete(agent_name, success=True)
+                    self.task_queue.mark_complete(
+                        task.task_id, result=subtask_result
+                    )
+
+                    # Track success
+                    self.agent_pool.mark_task_complete(agent_name, success=True)
+
+                except Exception as e:
+                    # Mark failed
+                    self.task_queue.mark_failed(task.task_id, str(e))
+                    self.agent_pool.mark_task_complete(agent_name, success=False)
 
                 # Record metrics
                 self.metrics_store.record_agent_performance(
