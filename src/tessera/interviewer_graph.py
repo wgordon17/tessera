@@ -1,0 +1,313 @@
+"""
+LangGraph-based Interviewer Agent implementation.
+
+Provides state persistence and checkpointing for interview workflows.
+"""
+
+from typing import TypedDict, Optional, Literal, Any
+from datetime import datetime
+from langgraph.graph import StateGraph, END
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.language_models import BaseChatModel
+
+from .config import INTERVIEWER_PROMPT, FrameworkConfig
+from .models import InterviewResult, QuestionResponse, Score, ScoreMetrics
+from .llm import create_llm
+from .graph_base import get_checkpointer, get_thread_config
+from .interviewer import InterviewerAgent  # For utility methods
+
+
+class InterviewerState(TypedDict):
+    """State schema for InterviewerGraph."""
+    # Input
+    task_description: str
+    candidate_name: Optional[str]
+    thread_id: Optional[str]
+
+    # Questions
+    questions: Optional[list[dict]]
+
+    # Responses
+    responses: Optional[list[dict]]
+
+    # Scoring
+    scores: Optional[list[dict]]
+    overall_score: Optional[float]
+
+    # Final output
+    recommendation: Optional[dict]
+
+    # Control flow
+    next_action: Optional[Literal["ask_questions", "score", "recommend", "end"]]
+
+
+class InterviewerGraph:
+    """
+    LangGraph-based interviewer agent with state persistence.
+
+    Provides interview workflows with:
+    - SQLite checkpointing
+    - Resume capability
+    - Streaming support
+
+    Example:
+        >>> from tessera.interviewer_graph import InterviewerGraph
+        >>> from tessera.graph_base import get_thread_config
+        >>>
+        >>> interviewer = InterviewerGraph()
+        >>> config = get_thread_config("interview-123")
+        >>> result = interviewer.invoke({
+        >>>     "task_description": "Build a caching system",
+        >>>     "candidate_name": "gpt-4"
+        >>> }, config=config)
+    """
+
+    def __init__(
+        self,
+        llm: Optional[BaseChatModel] = None,
+        config: Optional[FrameworkConfig] = None,
+        system_prompt: str = INTERVIEWER_PROMPT,
+    ):
+        """
+        Initialize the interviewer graph.
+
+        Args:
+            llm: Language model to use
+            config: Framework configuration
+            system_prompt: Custom system prompt
+        """
+        self.config = config or FrameworkConfig.from_env()
+        self.llm = llm or create_llm(self.config.llm)
+        self.system_prompt = system_prompt
+        self.scoring_weights = self.config.scoring_weights.normalize()
+
+        # Build the graph
+        self.app = self._build_graph()
+
+    def _build_graph(self) -> StateGraph:
+        """Build the LangGraph StateGraph."""
+        workflow = StateGraph(InterviewerState)
+
+        # Add nodes
+        workflow.add_node("design", self._design_node)
+        workflow.add_node("interview", self._interview_node)
+        workflow.add_node("score", self._score_node)
+        workflow.add_node("recommend", self._recommend_node)
+
+        # Set entry point
+        workflow.set_entry_point("design")
+
+        # Add edges
+        workflow.add_edge("design", "interview")
+        workflow.add_edge("interview", "score")
+        workflow.add_edge("score", "recommend")
+        workflow.add_edge("recommend", END)
+
+        # Compile with checkpointer
+        checkpointer = get_checkpointer()
+        return workflow.compile(checkpointer=checkpointer)
+
+    def _design_node(self, state: InterviewerState) -> InterviewerState:
+        """Design interview questions."""
+        task_description = state["task_description"]
+
+        prompt = f"""
+Task: {task_description}
+
+Design 6 interview questions to evaluate candidates for this task.
+Include:
+- Representative sample tasks
+- Edge-case variations
+- Meta-questions about limitations
+
+Respond in JSON format:
+{{
+    "questions": [
+        {{
+            "question_id": "Q1",
+            "text": "question text",
+            "type": "sample/edge-case/meta",
+            "evaluation_focus": "what this tests"
+        }}
+    ]
+}}
+"""
+
+        messages = [
+            SystemMessage(content=self.system_prompt),
+            HumanMessage(content=prompt),
+        ]
+
+        response = self.llm.invoke(messages)
+        result = InterviewerAgent._parse_json_response(None, response.content)
+
+        return {
+            **state,
+            "questions": result.get("questions", []),
+            "next_action": "ask_questions",
+        }
+
+    def _interview_node(self, state: InterviewerState) -> InterviewerState:
+        """Simulate candidate responses (in real use, this would query actual candidates)."""
+        questions = state.get("questions", [])
+        candidate_name = state.get("candidate_name", "unknown")
+
+        # For now, simulate responses
+        # In real implementation, this would invoke candidate LLM
+        responses = []
+        for q in questions:
+            responses.append({
+                "question_id": q.get("question_id"),
+                "question_text": q.get("text"),
+                "answer": f"Simulated response to: {q.get('text')[:50]}...",
+                "timestamp": datetime.now().isoformat(),
+            })
+
+        return {
+            **state,
+            "responses": responses,
+            "next_action": "score",
+        }
+
+    def _score_node(self, state: InterviewerState) -> InterviewerState:
+        """Score candidate responses."""
+        responses = state.get("responses", [])
+        questions = state.get("questions", [])
+
+        scores = []
+        for resp in responses:
+            # Ask LLM to score this response
+            prompt = f"""
+Score this response on a scale of 0-5 for each metric:
+
+Question: {resp['question_text']}
+Answer: {resp['answer']}
+
+Provide scores for:
+- accuracy (correctness and precision)
+- relevance (alignment with question)
+- completeness (thoroughness)
+- explainability (clarity)
+- efficiency (resource awareness)
+- safety (risk mitigation)
+
+Respond in JSON format:
+{{
+    "accuracy": 0-5,
+    "relevance": 0-5,
+    "completeness": 0-5,
+    "explainability": 0-5,
+    "efficiency": 0-5,
+    "safety": 0-5,
+    "rationale": "explanation"
+}}
+"""
+
+            messages = [
+                SystemMessage(content=self.system_prompt),
+                HumanMessage(content=prompt),
+            ]
+
+            response = self.llm.invoke(messages)
+            score_data = InterviewerAgent._parse_json_response(None, response.content)
+
+            scores.append({
+                "question_id": resp["question_id"],
+                "metrics": score_data,
+            })
+
+        # Calculate overall weighted score
+        if scores:
+            avg_metrics = {
+                "accuracy": sum(s["metrics"].get("accuracy", 0) for s in scores) / len(scores),
+                "relevance": sum(s["metrics"].get("relevance", 0) for s in scores) / len(scores),
+                "completeness": sum(s["metrics"].get("completeness", 0) for s in scores) / len(scores),
+                "explainability": sum(s["metrics"].get("explainability", 0) for s in scores) / len(scores),
+                "efficiency": sum(s["metrics"].get("efficiency", 0) for s in scores) / len(scores),
+                "safety": sum(s["metrics"].get("safety", 0) for s in scores) / len(scores),
+            }
+
+            # Calculate weighted score
+            overall = (
+                avg_metrics["accuracy"] * self.scoring_weights.accuracy +
+                avg_metrics["relevance"] * self.scoring_weights.relevance +
+                avg_metrics["completeness"] * self.scoring_weights.completeness +
+                avg_metrics["explainability"] * self.scoring_weights.explainability +
+                avg_metrics["efficiency"] * self.scoring_weights.efficiency +
+                avg_metrics["safety"] * self.scoring_weights.safety
+            ) / 5.0 * 100  # Convert to percentage
+        else:
+            overall = 0.0
+
+        return {
+            **state,
+            "scores": scores,
+            "overall_score": overall,
+            "next_action": "recommend",
+        }
+
+    def _recommend_node(self, state: InterviewerState) -> InterviewerState:
+        """Generate final recommendation."""
+        overall_score = state.get("overall_score", 0.0)
+        candidate_name = state.get("candidate_name", "unknown")
+
+        # Generate recommendation based on score
+        if overall_score >= 80:
+            decision = "STRONG HIRE"
+        elif overall_score >= 60:
+            decision = "HIRE"
+        elif overall_score >= 40:
+            decision = "MAYBE"
+        else:
+            decision = "NO HIRE"
+
+        recommendation = {
+            "candidate": candidate_name,
+            "overall_score": overall_score,
+            "decision": decision,
+            "rationale": f"Candidate scored {overall_score:.1f}% overall",
+        }
+
+        return {
+            **state,
+            "recommendation": recommendation,
+            "next_action": "end",
+        }
+
+    def invoke(self, input_data: Optional[dict], config: Optional[dict] = None) -> dict:
+        """
+        Invoke the interviewer graph.
+
+        Args:
+            input_data: Input state
+            config: Configuration including thread_id
+
+        Returns:
+            Final state after execution
+        """
+        return self.app.invoke(input_data, config=config)
+
+    def stream(self, input_data: dict, config: Optional[dict] = None):
+        """
+        Stream interviewer graph execution.
+
+        Args:
+            input_data: Input state
+            config: Configuration including thread_id
+
+        Yields:
+            State updates as they occur
+        """
+        return self.app.stream(input_data, config=config)
+
+    def get_state(self, config: dict) -> dict:
+        """
+        Get current state from checkpoint.
+
+        Args:
+            config: Configuration with thread_id
+
+        Returns:
+            Current state
+        """
+        return self.app.get_state(config)

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TESSERA ASCII Logo - Animated</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .logo-container {
+            text-align: left;
+        }
+
+        pre {
+            font-size: 18px;
+            line-height: 1.4;
+            margin: 0;
+            display: inline-block;
+        }
+
+        .box {
+            opacity: 0;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .box-top { animation-delay: 0.1s; color: #5E35B1; }
+        .box-left { animation-delay: 0.15s; color: #6A1B9A; }
+        .box-center { animation-delay: 0.05s; color: #4A148C; }
+        .box-right { animation-delay: 0.2s; color: #2196F3; }
+        .box-bottom { animation-delay: 0.25s; color: #00BCD4; }
+
+        .prompt {
+            opacity: 0;
+            animation: fadeIn 0.4s ease-out 0.3s forwards;
+            color: #ffffff;
+        }
+
+        .cursor {
+            opacity: 0;
+            animation: fadeIn 0.4s ease-out 0.3s forwards, blink 1.2s ease-in-out 0.5s infinite;
+            color: #ffffff;
+        }
+
+        .text {
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 0.3s forwards;
+            background: linear-gradient(90deg, #6A1B9A 0%, #2196F3 50%, #00BCD4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            margin-top: 10px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 99% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <pre><span class="box box-top">       ┌────┐
+       │    │
+       └────┘</span>
+<span class="box box-left">┌────┐</span> <span class="box box-center">┌────┐</span> <span class="box box-right">┌────┐</span>
+<span class="box box-left">│    │</span> <span class="box box-center">│ <span class="prompt">&gt;</span><span class="cursor">_</span> │</span> <span class="box box-right">│    │</span>
+<span class="box box-left">└────┘</span> <span class="box box-center">└────┘</span> <span class="box box-right">└────┘</span>
+<span class="box box-bottom">       ┌────┐
+       │    │
+       └────┘</span>
+
+<span class="text"> T E S S E R A</span></pre>
+    </div>
+</body>
+</html>

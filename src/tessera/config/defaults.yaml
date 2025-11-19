@@ -1,0 +1,191 @@
+# Tessera Default Configuration
+# This file shows all available configuration options with sensible defaults.
+# Copy to ~/.config/tessera/config.yaml and customize as needed.
+
+# ==============================================================================
+# GENERAL SETTINGS
+# ==============================================================================
+tessera:
+  version: "1.0"
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  debug: false
+  interactive_mode: true
+  default_complexity: "medium"  # simple, medium, complex
+
+# ==============================================================================
+# OBSERVABILITY
+# ==============================================================================
+observability:
+  # Local OTEL export (always enabled for privacy)
+  local:
+    enabled: true
+    traces_file: "~/.cache/tessera/otel/traces.jsonl"
+    metrics_file: "~/.cache/tessera/otel/metrics.jsonl"
+    max_file_size_mb: 100
+    max_files: 10
+
+  # Optional cloud backends (disabled by default)
+  backends: []
+    # Example: Send to Pydantic Logfire
+    # - name: "logfire"
+    #   enabled: false
+    #   endpoint: "https://logfire-api.pydantic.dev"
+    #   api_key: "${LOGFIRE_API_KEY}"
+
+# ==============================================================================
+# AGENTS
+# ==============================================================================
+agents:
+  # Default values inherited by all agents
+  defaults:
+    temperature: 0.7
+    timeout: 90
+    max_retries: 3
+    context_size: 8192
+
+  # Individual agent definitions
+  definitions:
+    - name: "supervisor"
+      role: "orchestrator"  # Only one orchestrator allowed
+      model: "gpt-4"
+      provider: "openai"
+      system_prompt_file: "~/.config/tessera/prompts/supervisor.md"
+      temperature: 0.3
+      context_size: 128000
+      capabilities: ["planning", "coordination", "delegation"]
+      phase_affinity: ["all"]
+
+# ==============================================================================
+# TOOLS
+# ==============================================================================
+tools:
+  # Global tool access control
+  global:
+    strategy: "risk-based"  # allowlist, blocklist, category, risk-based
+    max_risk_level: "high"  # safe, low, medium, high, critical
+    allow: []  # Used if strategy is "allowlist"
+    deny: []  # Used if strategy is "blocklist"
+
+  # Built-in tools
+  builtin:
+    filesystem:
+      enabled: true
+      approval_required: ["write_file", "delete_file"]
+      safe_paths:
+        - "./src/**"
+        - "./tests/**"
+        - "./docs/**"
+
+    execution:
+      enabled: true
+      approval_required: true
+
+    web:
+      enabled: true
+      approval_required: false
+
+    git:
+      enabled: true
+      approval_required: ["git_push", "git_merge"]
+
+  # Python plugin tools
+  plugins:
+    discovery:
+      - "~/.config/tessera/plugins/*.py"
+      - "./tessera_plugins/*.py"
+    definitions: []
+
+  # MCP servers
+  mcp: []
+
+# ==============================================================================
+# COMMUNICATIONS (Approval Workflows)
+# ==============================================================================
+communications:
+  default: ""  # Default channel for approvals
+  channels: []
+  routing: []
+
+# ==============================================================================
+# COST MANAGEMENT
+# ==============================================================================
+cost:
+  limits:
+    global:
+      daily_usd: 10.00
+      monthly_usd: 100.00
+      enforcement: "soft"  # soft = warn, hard = stop
+
+    per_task:
+      default_usd: 5.00
+      max_usd: 20.00
+      enforcement: "hard"
+
+  pricing:
+    auto_update: true
+    cache_duration_hours: 24
+    manual_overrides: []
+
+# ==============================================================================
+# PROJECT GENERATION
+# ==============================================================================
+project_generation:
+  # Interview configuration
+  interview:
+    enabled: true
+    min_questions: 3
+    max_questions: 10
+    adaptive: true
+
+  # Planning
+  planning:
+    breakdown_strategy: "hierarchical"  # hierarchical, flat, adaptive
+    max_task_depth: 3
+    min_subtasks: 2
+    max_subtasks: 15
+
+  # SDLC phases
+  phases:
+    - name: "research"
+      agents: ["researcher"]
+      required: true
+
+    - name: "architecture"
+      agents: ["code-architect"]
+      required: true
+
+    - name: "implementation"
+      agents: ["python-expert"]
+      required: true
+      parallel: true
+
+    - name: "review"
+      agents: ["code-reviewer"]
+      required: true
+      approval_required: true
+
+    - name: "testing"
+      agents: ["test-engineer"]
+      required: true
+      min_coverage: 80
+
+    - name: "security"
+      agents: ["security-expert"]
+      required: true
+
+    - name: "documentation"
+      agents: ["tech-writer"]
+      required: true
+
+  # Output structure
+  output:
+    project_root: "./generated_project"
+    create_git_repo: true
+    initial_commit: true
+    structure:
+      - "src/"
+      - "tests/"
+      - "docs/"
+      - "README.md"
+      - "pyproject.toml"
+      - ".gitignore"

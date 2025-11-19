@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 320" width="400" height="320">
+  <!-- Background (optional, can be transparent) -->
+  <rect width="400" height="320" fill="#f5f5f5"/>
+
+  <!-- Define gradient for TESSERA text -->
+  <defs>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6A1B9A;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00BCD4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Top square - Purple-Blue -->
+  <rect x="175" y="20" width="50" height="50" rx="8" ry="8" fill="#5E35B1"/>
+
+  <!-- Left square - Deep Purple -->
+  <rect x="115" y="80" width="50" height="50" rx="8" ry="8" fill="#6A1B9A"/>
+
+  <!-- Center square with terminal icon -->
+  <rect x="175" y="80" width="50" height="50" rx="8" ry="8" fill="#4A148C"/>
+
+  <!-- Custom terminal prompt symbol using shapes -->
+  <!-- Greater than symbol (chevron) with rounded joins -->
+  <path d="M 186 98 L 197 105 L 186 112"
+        stroke="white"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"/>
+
+  <!-- Underscore with rounded corners to match chevron -->
+  <rect x="199" y="111" width="14" height="2.5" rx="1.25" ry="1.25" fill="white"/>
+
+  <!-- Right square - Blue -->
+  <rect x="235" y="80" width="50" height="50" rx="8" ry="8" fill="#2196F3"/>
+
+  <!-- Bottom square - Teal -->
+  <rect x="175" y="140" width="50" height="50" rx="8" ry="8" fill="#00BCD4"/>
+
+  <!-- TESSERA text with gradient -->
+  <text x="200" y="260" font-family="Montserrat, 'Open Sans', Helvetica, sans-serif" font-size="56" font-weight="700" fill="url(#textGradient)" text-anchor="middle" letter-spacing="3">TESSERA</text>
+</svg>

@@ -1,0 +1,79 @@
+site_name: Tessera
+site_description: No-code multi-agent AI orchestration for full project generation
+site_author: Will Gordon
+site_url: https://tessera.readthedocs.io
+
+repo_name: tessera
+repo_url: https://github.com/yourusername/tessera
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: cyan
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: cyan
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - First Project: getting-started/first-project.md
+  - User Guide:
+    - Configuration: user-guide/configuration.md
+    - Agents: user-guide/agents.md
+    - Tools & Plugins: user-guide/tools.md
+    - Interactive Mode: user-guide/interactive-mode.md
+    - Background Execution: user-guide/background-mode.md
+    - Cost Management: user-guide/cost-management.md
+  - Advanced:
+    - Observability: advanced/observability.md
+    - MCP Integration: advanced/mcp-integration.md
+    - Custom Plugins: advanced/custom-plugins.md
+    - Security Model: advanced/security.md
+  - Reference:
+    - Configuration Schema: reference/configuration.md
+    - Built-in Tools: reference/tools.md
+    - CLI Commands: reference/cli.md
+    - API Reference: reference/api.md
+  - Development:
+    - Architecture: development/architecture.md
+    - Contributing: development/contributing.md
+    - Roadmap: development/roadmap.md
