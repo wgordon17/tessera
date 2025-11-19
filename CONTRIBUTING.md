@@ -97,11 +97,76 @@ instead of plain dicts. Update all callers accordingly.
 
 ## Development Workflow
 
-1. Create feature branch: `git checkout -b feat/my-feature`
-2. Make changes with atomic commits
-3. Follow commit guidelines above
-4. Test thoroughly
-5. Push and create PR to upstream
+### Fork Setup
+
+Tessera uses a fork-based workflow:
+
+```bash
+# One-time setup
+git clone git@github.com:wgordon17/tessera.git  # Your fork
+cd tessera
+git remote add upstream git@github.com:tessera-agents/tessera.git
+
+# Verify remotes
+git remote -v
+# origin    git@github.com:wgordon17/tessera.git
+# upstream  git@github.com:tessera-agents/tessera.git
+```
+
+### Feature Development
+
+1. **Sync with upstream:**
+   ```bash
+   git checkout main
+   git pull upstream main
+   git push origin main
+   ```
+
+2. **Create feature branch:**
+   ```bash
+   git checkout -b feat/my-feature
+   ```
+
+3. **Make changes with atomic commits:**
+   - Follow commit message guidelines
+   - One logical change per commit
+   - Test each commit
+
+4. **Push to your fork:**
+   ```bash
+   git push origin feat/my-feature
+   ```
+
+5. **Create PR to upstream:**
+   ```bash
+   gh pr create --repo tessera-agents/tessera \
+     --base main \
+     --head wgordon17:feat/my-feature \
+     --title "feat(scope): description" \
+     --body "PR description"
+   ```
+
+   Or visit: https://github.com/tessera-agents/tessera/compare
+
+6. **After PR is merged:**
+   ```bash
+   git checkout main
+   git pull upstream main
+   git push origin main
+   git branch -D feat/my-feature
+   ```
+
+### Direct Commits (Documentation Only)
+
+For documentation-only changes (README, CONTRIBUTING, docs/):
+```bash
+# Make changes on main
+git checkout main
+git add [files]
+git commit -m "docs: description"
+git push origin main
+git push upstream main
+```
 
 ## Code Style
 
