@@ -47,6 +47,7 @@ class TestLLMConfig:
         config = LLMConfig(
             provider="azure",
             api_key="test-key",
+            models=["gpt-4"],
             azure_endpoint="https://test.openai.azure.com",
             azure_deployment="test-deployment",
         )
@@ -390,6 +391,7 @@ class TestLLMProvider:
         config = LLMConfig(
             provider="azure",
             api_key="test-key",
+            models=["gpt-4"],
             azure_endpoint="https://test.openai.azure.com",
             azure_deployment="test-deployment",
             models=["gpt-4"], temperature=0.6,
