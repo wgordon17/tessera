@@ -1,11 +1,10 @@
 """
 Agent identity management for Slack.
 
-Ensures each agent has a unique identity (username, icon, color) when
-posting to Slack, while using a shared bot token.
+Generates identities from agent configuration, no hard-coded defaults.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from dataclasses import dataclass
 
 
@@ -16,88 +15,140 @@ class AgentIdentity:
     name: str
     display_name: str  # "Tessera: Python Expert"
     emoji: str  # ":snake:"
-    color: str  # "#4ECDC4" (for message attachments)
+    color: str  # "#4ECDC4"
     description: str  # "Python coding specialist"
 
 
 class AgentIdentityManager:
     """
-    Manages agent identities for Slack messages.
+    Manages agent identities for Slack.
 
-    Each agent gets a unique persona while sharing the same bot token.
+    Identities are generated from agent configuration - no hard-coded defaults.
     """
 
-    # Default identities for common agent types
-    DEFAULT_IDENTITIES = {
-        "supervisor": AgentIdentity(
-            name="supervisor",
-            display_name="Tessera: Supervisor",
-            emoji=":construction_worker:",
-            color="#FF6B6B",
-            description="Task coordinator and orchestrator",
-        ),
-        "python-expert": AgentIdentity(
-            name="python-expert",
-            display_name="Tessera: Python Expert",
-            emoji=":snake:",
-            color="#4ECDC4",
-            description="Python coding specialist",
-        ),
-        "test-engineer": AgentIdentity(
-            name="test-engineer",
-            display_name="Tessera: Test Engineer",
-            emoji=":test_tube:",
-            color="#45B7D1",
-            description="Testing and quality assurance",
-        ),
-        "code-reviewer": AgentIdentity(
-            name="code-reviewer",
-            display_name="Tessera: Code Reviewer",
-            emoji=":mag:",
-            color="#5F27CD",
-            description="Code quality and best practices",
-        ),
-        "security-expert": AgentIdentity(
-            name="security-expert",
-            display_name="Tessera: Security",
-            emoji=":shield:",
-            color="#EE5A6F",
-            description="Security auditing",
-        ),
-        "tech-writer": AgentIdentity(
-            name="tech-writer",
-            display_name="Tessera: Documentation",
-            emoji=":memo:",
-            color="#00D2D3",
-            description="Technical documentation",
-        ),
+    # Emoji suggestions based on keywords (not defaults!)
+    EMOJI_HINTS = {
+        "supervisor": ":construction_worker:",
+        "orchestrator": ":conductor:",
+        "python": ":snake:",
+        "javascript": ":yellow_square:",
+        "test": ":test_tube:",
+        "review": ":mag:",
+        "security": ":shield:",
+        "documentation": ":memo:",
+        "writer": ":pencil:",
+        "devops": ":gear:",
+        "architect": ":triangular_ruler:",
+        "researcher": ":books:",
+        "data": ":bar_chart:",
     }
 
-    def __init__(self, custom_identities: Optional[Dict[str, AgentIdentity]] = None):
+    # Color palette (cycled through agents)
+    COLORS = [
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#5F27CD",
+        "#EE5A6F", "#00D2D3", "#FF9FF3", "#54A0FF",
+        "#FFA502", "#2ED573", "#FF6348", "#1E90FF",
+    ]
+
+    def __init__(self, agent_configs: Optional[List] = None):
         """
-        Initialize agent identity manager.
+        Initialize from agent configurations.
 
         Args:
-            custom_identities: Optional custom agent identities to add/override
+            agent_configs: List of AgentDefinition from TesseraSettings
         """
-        self.identities = self.DEFAULT_IDENTITIES.copy()
-        if custom_identities:
-            self.identities.update(custom_identities)
+        self.identities: Dict[str, AgentIdentity] = {}
+        self._color_index = 0
+
+        if agent_configs:
+            for config in agent_configs:
+                self.register_from_config(config)
+
+    def register_from_config(self, agent_config) -> None:
+        """
+        Create identity from agent configuration.
+
+        Args:
+            agent_config: AgentDefinition from config
+        """
+        # Get emoji based on name/capabilities
+        emoji = self._suggest_emoji(agent_config)
+
+        # Assign next color
+        color = self.COLORS[self._color_index % len(self.COLORS)]
+        self._color_index += 1
+
+        # Get description from system prompt or capabilities
+        description = self._extract_description(agent_config)
+
+        identity = AgentIdentity(
+            name=agent_config.name,
+            display_name=f"Tessera: {agent_config.name.replace('-', ' ').title()}",
+            emoji=emoji,
+            color=color,
+            description=description,
+        )
+
+        self.identities[agent_config.name] = identity
+
+    def _suggest_emoji(self, config) -> str:
+        """Suggest emoji based on agent name and capabilities."""
+        name_lower = config.name.lower()
+
+        # Check name first
+        for keyword, emoji in self.EMOJI_HINTS.items():
+            if keyword in name_lower:
+                return emoji
+
+        # Check role if available
+        if hasattr(config, 'role') and config.role:
+            role_lower = config.role.lower()
+            for keyword, emoji in self.EMOJI_HINTS.items():
+                if keyword in role_lower:
+                    return emoji
+
+        # Check capabilities
+        if hasattr(config, 'capabilities') and config.capabilities:
+            for cap in config.capabilities:
+                cap_lower = cap.lower()
+                for keyword, emoji in self.EMOJI_HINTS.items():
+                    if keyword in cap_lower:
+                        return emoji
+
+        return ":robot_face:"
+
+    def _extract_description(self, config) -> str:
+        """Extract short description from config."""
+        # Try system_prompt first
+        if hasattr(config, 'system_prompt') and config.system_prompt:
+            # Take first line or first 100 chars
+            first_line = config.system_prompt.split('\n')[0]
+            return first_line[:100].strip()
+
+        # Try capabilities
+        if hasattr(config, 'capabilities') and config.capabilities:
+            return ", ".join(config.capabilities[:3])
+
+        # Fallback
+        return f"Agent: {config.name}"
 
     def get_identity(self, agent_name: str) -> AgentIdentity:
         """
-        Get identity for an agent.
+        Get identity for agent.
+
+        If agent not registered (shouldn't happen in normal use),
+        creates a minimal fallback identity.
 
         Args:
             agent_name: Agent name
 
         Returns:
-            AgentIdentity for the agent, or a default if not found
+            AgentIdentity
         """
         if agent_name in self.identities:
             return self.identities[agent_name]
 
-        # Create default identity for unknown agents
+        # Fallback for unknown agents (shouldn't happen)
         return AgentIdentity(
             name=agent_name,
             display_name=f"Tessera: {agent_name.replace('-', ' ').title()}",
@@ -108,22 +159,9 @@ class AgentIdentityManager:
 
     def register_identity(self, identity: AgentIdentity) -> None:
         """
-        Register a new agent identity.
+        Manually register an identity.
 
         Args:
             identity: AgentIdentity to register
         """
         self.identities[identity.name] = identity
-
-    def format_message_header(self, agent_name: str) -> str:
-        """
-        Format message header with agent identity.
-
-        Args:
-            agent_name: Agent name
-
-        Returns:
-            Formatted header string for Slack message
-        """
-        identity = self.get_identity(agent_name)
-        return f"{identity.emoji} *{identity.display_name}*\n_{identity.description}_"
