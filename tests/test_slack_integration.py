@@ -41,8 +41,17 @@ class TestAgentIdentityManager:
         """Test colors are assigned to agents."""
         manager = AgentIdentityManager()
 
-        config1 = Mock(name="agent1", capabilities=[], system_prompt="")
-        config2 = Mock(name="agent2", capabilities=[], system_prompt="")
+        config1 = Mock()
+        config1.name = "agent1"
+        config1.capabilities = []
+        config1.system_prompt = None
+        config1.role = None
+
+        config2 = Mock()
+        config2.name = "agent2"
+        config2.capabilities = []
+        config2.system_prompt = None
+        config2.role = None
 
         manager.register_from_config(config1)
         manager.register_from_config(config2)
